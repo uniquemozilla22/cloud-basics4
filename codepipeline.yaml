@@ -1,10 +1,8 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 
 Description: github-codepipeline
 
 Parameters:
-
-
   GitHubOwner:
     Type: String
     Default: uniquemozilla22 #replace with your github username
@@ -22,45 +20,42 @@ Parameters:
 
   ApplicationStackName:
     Type: String
-    Default: codepipeline-github-application
+    Default: codepipeline-github-application2
     AllowedPattern: "[A-Za-z0-9-]+"
 
-
 Resources:
-  
   PipelineArtifactsBucket:
     Type: AWS::S3::Bucket
     Properties:
       VersioningConfiguration:
         Status: Enabled
 
-  AppPipeline: 
+  AppPipeline:
     Type: AWS::CodePipeline::Pipeline
-    Properties: 
+    Properties:
       Name: github-wordpress-pipeline
       ArtifactStore:
         Type: S3
         Location: !Ref PipelineArtifactsBucket
-      RoleArn: 
-        !GetAtt CodePipelineRole.Arn
-      Stages: 
+      RoleArn: !GetAtt CodePipelineRole.Arn
+      Stages:
         - Name: Source
-          Actions: 
+          Actions:
             - Name: SourceAction
-              ActionTypeId: 
+              ActionTypeId:
                 Category: Source
                 Owner: ThirdParty
                 Version: 1
                 Provider: GitHub
-              OutputArtifacts: 
+              OutputArtifacts:
                 - Name: AppSourceCode
-              Configuration: 
+              Configuration:
                 Owner: !Ref GitHubOwner
                 Repo: !Ref RepositoryName
                 Branch: !Ref BranchName
-                OAuthToken: '{{resolve:secretsmanager:github-oauth-token:SecretString}}'               
+                OAuthToken: "{{resolve:secretsmanager:github-oauth-token:SecretString}}"
                 PollForSourceChanges: false
-              RunOrder: 1      
+              RunOrder: 1
         - Name: Deploy
           Actions:
             - Name: CloudFormationDeploy
@@ -68,7 +63,7 @@ Resources:
                 Category: Deploy
                 Owner: AWS
                 Provider: CloudFormation
-                Version: '1'
+                Version: "1"
               InputArtifacts:
                 - Name: AppSourceCode
               Configuration:
@@ -80,14 +75,13 @@ Resources:
               RunOrder: 1
 
   AppPipelineWebhook:
-    Type: 'AWS::CodePipeline::Webhook'
+    Type: "AWS::CodePipeline::Webhook"
     Properties:
       Authentication: GITHUB_HMAC
       AuthenticationConfiguration:
-        SecretToken: '{{resolve:secretsmanager:github-oauth-token:SecretString}}'
+        SecretToken: "{{resolve:secretsmanager:github-oauth-token:SecretString}}"
       Filters:
-        - 
-          JsonPath: "$.ref"
+        - JsonPath: "$.ref"
           MatchEquals: refs/heads/{Branch}
       TargetPipeline: !Ref AppPipeline
       TargetAction: SourceAction
@@ -108,28 +102,27 @@ Resources:
 
   CodePipelineServiceRolePolicy:
     Type: AWS::IAM::Policy
-    Properties: 
+    Properties:
       PolicyDocument:
-        Version: '2012-10-17'
+        Version: "2012-10-17"
         Statement:
           - Action:
-            - iam:PassRole
+              - iam:PassRole
             Resource: "*"
             Effect: Allow
             Condition:
               StringEqualsIfExists:
                 iam:PassedToService:
-                - cloudformation.amazonaws.com
-                - ec2.amazonaws.com
-                - s3.amazonaws.com
-                - secretsmanager.amazonaws.com
+                  - cloudformation.amazonaws.com
+                  - ec2.amazonaws.com
+                  - s3.amazonaws.com
+                  - secretsmanager.amazonaws.com
           - Action: "*"
             Resource: "*"
             Effect: Allow
       PolicyName: CodePipelineServiceRolePolicy
-      Roles: 
+      Roles:
         - !Ref CodePipelineRole
-
 
   CloudformationRole:
     Type: AWS::IAM::Role
